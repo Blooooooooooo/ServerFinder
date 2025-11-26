@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense } from 'react';
-import Navigation from '../../components/Navigation';
 import ServerCard from '../../components/ServerCard';
 import { useEffect, useState } from 'react';
 import { IServer } from '../../models/Server';
@@ -35,8 +34,6 @@ function PartneredServersContent() {
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-discord-blurple selection:text-white pb-20">
-            <Navigation />
-
             {/* Hero Section */}
             <div className="relative pt-32 pb-12 px-6 overflow-hidden">
                 <div className="hero-background"></div>

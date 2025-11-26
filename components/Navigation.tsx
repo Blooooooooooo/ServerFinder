@@ -75,7 +75,7 @@ export default function Navigation() {
                             href="https://discord.gg/ZKFjPmh8ZV"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200"
+                            className="text-discord-very-light-gray hover:text-white transition-colors duration-200"
                         >
                             Submit Your Server
                         </a>
@@ -154,7 +154,7 @@ export default function Navigation() {
                         ) : (
                             <button
                                 onClick={() => signIn('discord')}
-                                className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200"
+                                className="text-discord-very-light-gray hover:text-white transition-colors duration-200"
                             >
                                 Login
                             </button>
@@ -215,7 +215,7 @@ export default function Navigation() {
                                 href="https://discord.gg/ZKFjPmh8ZV"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-2 rounded-md text-sm font-medium text-center transition-colors duration-200"
+                                className="text-discord-very-light-gray hover:text-white transition-colors duration-200"
                                 onClick={() => setIsOpen(false)}
                             >
                                 Submit Your Server
