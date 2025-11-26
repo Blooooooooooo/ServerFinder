@@ -75,11 +75,8 @@ export default function Navigation() {
                             href="https://discord.gg/ZKFjPmh8ZV"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="btn-primary py-2 px-4 text-sm flex items-center gap-2"
+                            className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200"
                         >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                            </svg>
                             Submit Your Server
                         </a>
 
@@ -157,7 +154,7 @@ export default function Navigation() {
                         ) : (
                             <button
                                 onClick={() => signIn('discord')}
-                                className="btn-primary py-1.5 px-4 text-sm"
+                                className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200"
                             >
                                 Login
                             </button>
@@ -218,12 +215,9 @@ export default function Navigation() {
                                 href="https://discord.gg/ZKFjPmh8ZV"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="btn-primary py-2 px-4 text-sm text-center flex items-center justify-center gap-2"
+                                className="bg-[#5865F2] hover:bg-[#4752C4] text-white px-4 py-2 rounded-md text-sm font-medium text-center transition-colors duration-200"
                                 onClick={() => setIsOpen(false)}
                             >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                                </svg>
                                 Submit Your Server
                             </a>
                             {session ? (
