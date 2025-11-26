@@ -19,6 +19,7 @@ export default function FavoritesPage() {
     const router = useRouter();
     const [favorites, setFavorites] = useState<Server[]>([]);
     const [loading, setLoading] = useState(true);
+    const [removing, setRemoving] = useState<string | null>(null);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -43,16 +44,27 @@ export default function FavoritesPage() {
     };
 
     const removeFavorite = async (serverId: string) => {
+        if (removing) return; // Prevent double-clicks
+
+        setRemoving(serverId);
         try {
             const res = await fetch(`/api/favorites?server_id=${serverId}`, {
                 method: 'DELETE'
             });
             const data = await res.json();
+
             if (data.success) {
+                // Remove from UI
                 setFavorites(favorites.filter(f => f._id !== serverId));
+            } else {
+                console.error('Failed to remove favorite:', data.error);
+                alert('Failed to remove favorite. Please try again.');
             }
         } catch (error) {
             console.error('Failed to remove favorite:', error);
+            alert('Failed to remove favorite. Please try again.');
+        } finally {
+            setRemoving(null);
         }
     };
 
@@ -143,12 +155,23 @@ export default function FavoritesPage() {
                                 </Link>
                                 <button
                                     onClick={() => removeFavorite(server._id)}
-                                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-colors"
+                                    disabled={removing === server._id}
+                                    className={`px-4 py-2 rounded-xl transition-colors ${removing === server._id
+                                            ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed'
+                                            : 'bg-red-500/20 hover:bg-red-500/30 text-red-400'
+                                        }`}
                                     title="Remove from favorites"
                                 >
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
+                                    {removing === server._id ? (
+                                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    )}
                                 </button>
                             </div>
                         </div>
