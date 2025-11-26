@@ -71,6 +71,17 @@ export default function Navigation() {
                             <span>Partnered Servers</span>
                             <span className="bg-discord-fuchsia text-[10px] px-1.5 py-0.5 rounded text-white font-bold">NEW</span>
                         </Link>
+                        <a
+                            href="https://discord.gg/ZKFjPmh8ZV"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-primary py-2 px-4 text-sm flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                            Submit Your Server
+                        </a>
 
                         {/* Auth Buttons */}
                         {session ? (
@@ -146,7 +157,7 @@ export default function Navigation() {
                         ) : (
                             <button
                                 onClick={() => signIn('discord')}
-                                className="btn-primary py-2 px-6 text-sm"
+                                className="btn-primary py-1.5 px-4 text-sm"
                             >
                                 Login
                             </button>
@@ -203,6 +214,18 @@ export default function Navigation() {
                                 <span>Partnered Servers</span>
                                 <span className="bg-discord-fuchsia text-[10px] px-1.5 py-0.5 rounded text-white font-bold">NEW</span>
                             </Link>
+                            <a
+                                href="https://discord.gg/ZKFjPmh8ZV"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-primary py-2 px-4 text-sm text-center flex items-center justify-center gap-2"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                                Submit Your Server
+                            </a>
                             {session ? (
                                 <>
                                     <div className="border-t border-white/5 pt-4 mt-2">
