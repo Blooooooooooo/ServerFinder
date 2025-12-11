@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Toast, { ToastType } from '@/components/Toast';
+import Modal from '@/components/Modal';
 
 interface Server {
     _id: string;
@@ -45,6 +46,9 @@ export default function ServerManagement() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [updatingPartner, setUpdatingPartner] = useState<string | null>(null);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [serverToDelete, setServerToDelete] = useState<Server | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const debouncedSearch = useDebounce(search, 500);
 
@@ -142,6 +146,40 @@ export default function ServerManagement() {
             setSelected(new Set());
         } catch (error) {
             showToast('Bulk operation failed', 'error');
+        }
+    };
+
+    const confirmDelete = (server: Server) => {
+        setServerToDelete(server);
+        setDeleteModalOpen(true);
+    };
+
+    const handleDeleteServer = async () => {
+        if (!serverToDelete) return;
+
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/servers/${serverToDelete._id}`, {
+                method: 'DELETE'
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setServers(prev => prev.filter(s => s._id !== serverToDelete._id));
+                showToast(`Server "${serverToDelete.name}" deleted successfully`, 'success');
+                if (selected.has(serverToDelete._id)) {
+                    setSelected(prev => { const newSet = new Set(prev); newSet.delete(serverToDelete._id); return newSet; });
+                }
+                setDeleteModalOpen(false);
+                setServerToDelete(null);
+            } else {
+                showToast(data.error || 'Failed to delete server', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to delete server', 'error');
+            console.error(error);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -364,11 +402,7 @@ export default function ServerManagement() {
                                                     {updatingPartner === server._id ? '...' : server.is_partner ? 'Remove' : 'Partner'}
                                                 </button>
                                                 <button
-                                                    onClick={() => {
-                                                        if (confirm(`Delete "${server.name}"?`)) {
-                                                            showToast('Delete functionality coming soon!', 'info');
-                                                        }
-                                                    }}
+                                                    onClick={() => confirmDelete(server)}
                                                     className="text-xs text-red-400 hover:text-red-300 px-1.5"
                                                     title="Delete server"
                                                 >
@@ -408,6 +442,49 @@ export default function ServerManagement() {
                     </div>
                 </div>
             </div>
+
+            <Modal
+                isOpen={deleteModalOpen}
+                onClose={() => !isDeleting && setDeleteModalOpen(false)}
+                title="Delete Server"
+                footer={
+                    <>
+                        <button
+                            onClick={() => setDeleteModalOpen(false)}
+                            disabled={isDeleting}
+                            className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleDeleteServer}
+                            disabled={isDeleting}
+                            className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Deleting...
+                                </>
+                            ) : (
+                                'Delete Server'
+                            )}
+                        </button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <p>Are you sure you want to delete <span className="font-bold text-white">{serverToDelete?.name}</span>?</p>
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                        <p className="text-red-400 text-sm flex gap-2">
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            This action cannot be undone. All associated data including stats, favorites, and history will be permanently removed.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
         </>
     );
 }
