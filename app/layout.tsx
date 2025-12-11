@@ -65,6 +65,8 @@ export const metadata: Metadata = {
     },
 };
 
+import GoogleAnalytics from "@/components/GoogleAnalytics";
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -74,6 +76,7 @@ export default function RootLayout({
         <html lang="en">
             <body>
                 <Providers>
+                    <GoogleAnalytics gaId="G-P479M8YNPX" />
                     <Navigation />
                     {children}
                 </Providers>
