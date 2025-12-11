@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Server from '@/models/Server';
+import SearchAnalytics from '@/models/SearchAnalytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +120,20 @@ export async function GET(request: Request) {
         ]);
 
         const totalPages = Math.ceil(totalCount / limit);
+
+        // Track search analytics if a search term exists
+        if (search && search.trim().length > 2) {
+            // Fire and forget - don't await this to keep search fast
+            try {
+                SearchAnalytics.create({
+                    search_term: search.trim(),
+                    results_count: totalCount,
+                    timestamp: new Date()
+                }).catch((err: any) => console.error('Error tracking search:', err));
+            } catch (e) {
+                console.error('Error initiating search tracking:', e);
+            }
+        }
 
         return NextResponse.json({
             success: true,

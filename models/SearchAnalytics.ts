@@ -12,7 +12,7 @@ const searchAnalyticsSchema = new mongoose.Schema({
 
 // Indexes for efficient querying
 searchAnalyticsSchema.index({ search_term: 1, timestamp: -1 });
-searchAnalyticsSchema.index({ timestamp: -1 });
+searchAnalyticsSchema.index({ timestamp: -1 }, { expireAfterSeconds: 2592000 }); // Auto-delete after 30 days
 searchAnalyticsSchema.index({ clicked_server_id: 1 });
 
 export default mongoose.models.SearchAnalytics || mongoose.model('SearchAnalytics', searchAnalyticsSchema);
