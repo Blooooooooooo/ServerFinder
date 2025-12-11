@@ -45,18 +45,28 @@ export async function PATCH(
         await connectDB();
 
         const body = await request.json();
-        const { is_partner } = body;
+        const { is_partner, name } = body;
 
-        if (typeof is_partner !== 'boolean') {
+        const updateData: { is_partner?: boolean; name?: string } = {};
+
+        if (typeof is_partner === 'boolean') {
+            updateData.is_partner = is_partner;
+        }
+
+        if (typeof name === 'string' && name.trim().length > 0) {
+            updateData.name = name.trim();
+        }
+
+        if (Object.keys(updateData).length === 0) {
             return NextResponse.json(
-                { success: false, error: 'Invalid is_partner value' },
+                { success: false, error: 'No valid fields provided for update' },
                 { status: 400 }
             );
         }
 
         const server = await Server.findOneAndUpdate(
             { _id: params.id },
-            { is_partner },
+            updateData,
             { new: true }
         );
 

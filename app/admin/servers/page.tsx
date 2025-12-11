@@ -50,6 +50,12 @@ export default function ServerManagement() {
     const [serverToDelete, setServerToDelete] = useState<Server | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    const [renameModalOpen, setRenameModalOpen] = useState(false);
+    const [serverToRename, setServerToRename] = useState<Server | null>(null);
+    const [newName, setNewName] = useState('');
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+
     const debouncedSearch = useDebounce(search, 500);
 
     const showToast = (message: string, type: ToastType) => {
@@ -180,6 +186,57 @@ export default function ServerManagement() {
             console.error(error);
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const openRenameModal = (server: Server) => {
+        setServerToRename(server);
+        setNewName(server.name);
+        setRenameModalOpen(true);
+    };
+
+    const handleSyncFromDiscord = async () => {
+        if (!serverToRename) return;
+        setIsSyncing(true);
+        try {
+            const res = await fetch(`/api/servers/${serverToRename._id}/sync`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                setNewName(data.data.name);
+                showToast('Synced name from Discord', 'success');
+            } else {
+                showToast(data.error || 'Failed to sync with Discord', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to sync with Discord', 'error');
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleRenameServer = async () => {
+        if (!serverToRename || !newName.trim()) return;
+        setIsRenaming(true);
+        try {
+            const res = await fetch(`/api/servers/${serverToRename._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setServers(prev => prev.map(s => s._id === serverToRename._id ? { ...s, name: data.data.name } : s));
+                showToast('Server renamed successfully', 'success');
+                setRenameModalOpen(false);
+                setServerToRename(null);
+            } else {
+                showToast(data.error || 'Failed to rename server', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to rename server', 'error');
+        } finally {
+            setIsRenaming(false);
         }
     };
 
@@ -395,6 +452,13 @@ export default function ServerManagement() {
                                         <td className="p-3">
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <button
+                                                    onClick={() => openRenameModal(server)}
+                                                    className="p-1.5 text-slate-400 hover:text-white transition-colors"
+                                                    title="Rename Server"
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
                                                     onClick={() => handleTogglePartner(server._id, server.is_partner)}
                                                     disabled={updatingPartner === server._id}
                                                     className={`text-xs px-2.5 py-1 rounded transition-colors whitespace-nowrap ${server.is_partner ? 'text-red-400 hover:bg-red-500/10' : 'text-discord-hot-orange hover:bg-discord-hot-orange/10'} disabled:opacity-50`}
@@ -442,6 +506,69 @@ export default function ServerManagement() {
                     </div>
                 </div>
             </div>
+
+            <Modal
+                isOpen={renameModalOpen}
+                onClose={() => !isRenaming && setRenameModalOpen(false)}
+                title="Rename Server"
+                footer={
+                    <>
+                        <button
+                            onClick={() => setRenameModalOpen(false)}
+                            disabled={isRenaming}
+                            className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleRenameServer}
+                            disabled={isRenaming || !newName.trim()}
+                            className="px-4 py-2 text-sm bg-discord-blurple hover:bg-discord-blurple/90 text-white rounded-lg transition-colors flex items-center gap-2"
+                        >
+                            {isRenaming ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Changes'
+                            )}
+                        </button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">Server Name</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-discord-blurple transition-all"
+                                placeholder="Enter server name"
+                            />
+                            <button
+                                onClick={handleSyncFromDiscord}
+                                disabled={isSyncing}
+                                className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors text-slate-300 hover:text-white"
+                                title="Fetch current name from Discord"
+                            >
+                                {isSyncing ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Click the cycle icon to fetch the latest name directly from Discord.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal
                 isOpen={deleteModalOpen}
