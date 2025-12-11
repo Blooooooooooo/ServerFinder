@@ -19,31 +19,46 @@ export async function POST(
             );
         }
 
-        if (!server.guild_id) {
+        // 2. Extract Invite Code
+        // Supported formats: https://discord.gg/code, https://discord.com/invite/code, or just 'code'
+        const inviteLink = server.link || '';
+        let inviteCode = '';
+
+        try {
+            if (inviteLink.includes('/')) {
+                const url = new URL(inviteLink.startsWith('http') ? inviteLink : `https://${inviteLink}`);
+                inviteCode = url.pathname.split('/').pop() || '';
+            } else {
+                inviteCode = inviteLink;
+            }
+        } catch (e) {
+            inviteCode = inviteLink.split('/').pop() || '';
+        }
+
+        if (!inviteCode) {
             return NextResponse.json(
-                { success: false, error: 'Server record has no Guild ID associated.' },
+                { success: false, error: 'Could not parse invite code from server link.' },
                 { status: 400 }
             );
         }
 
-        // 2. Fetch Guild Info from Discord API
-        const botToken = process.env.DISCORD_BOT_TOKEN;
-        if (!botToken) {
-            return NextResponse.json(
-                { success: false, error: 'Bot configuration missing (Token)' },
-                { status: 500 }
-            );
-        }
-
-        const discordRes = await fetch(`https://discord.com/api/v10/guilds/${server.guild_id}`, {
-            headers: {
-                'Authorization': `Bot ${botToken}`,
-                'Content-Type': 'application/json'
-            }
+        // 3. Fetch Invite Info from Discord API
+        // This works even if the bot is NOT in the server
+        const discordRes = await fetch(`https://discord.com/api/v10/invites/${inviteCode}?with_counts=true`, {
+            method: 'GET'
         });
 
         if (!discordRes.ok) {
             const errData = await discordRes.json();
+            console.error('Discord API Error:', errData);
+
+            if (discordRes.status === 404) {
+                return NextResponse.json(
+                    { success: false, error: 'Invite link is invalid or expired.' },
+                    { status: 404 }
+                );
+            }
+
             return NextResponse.json(
                 {
                     success: false,
@@ -53,10 +68,17 @@ export async function POST(
             );
         }
 
-        const guildData = await discordRes.json();
+        const inviteData = await discordRes.json();
+        const guildData = inviteData.guild;
 
-        // 3. Return the data (do not save yet, let the user decide)
-        // Construct icon URL
+        if (!guildData) {
+            return NextResponse.json(
+                { success: false, error: 'Invite data did not contain server info.' },
+                { status: 400 }
+            );
+        }
+
+        // 4. Return the data
         const iconUrl = guildData.icon
             ? `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.png`
             : null;
@@ -66,7 +88,8 @@ export async function POST(
             data: {
                 name: guildData.name,
                 icon_url: iconUrl,
-                member_count: guildData.approximate_member_count // Note: Might be missing depending on intents/endpoints
+                member_count: inviteData.approximate_member_count,
+                online_count: inviteData.approximate_presence_count
             }
         });
 
