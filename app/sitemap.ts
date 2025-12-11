@@ -29,7 +29,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     try {
         await connectDB();
-        const servers = await Server.find({}, { _id: 1, created_at: 1 }).lean();
+        // Remove .lean() to ensure Mongoose handles BigInt/String casting correctly if _id is stored as Number
+        const servers = await Server.find({}, { _id: 1, created_at: 1 });
 
         const serverRoutes: MetadataRoute.Sitemap = servers.map(server => ({
             url: `${baseUrl}/server/${server._id}`,
