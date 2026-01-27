@@ -53,6 +53,7 @@ export default function ServerManagement() {
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [serverToRename, setServerToRename] = useState<Server | null>(null);
     const [newName, setNewName] = useState('');
+    const [newIconUrl, setNewIconUrl] = useState<string | null>(null);
     const [isRenaming, setIsRenaming] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
 
@@ -192,6 +193,7 @@ export default function ServerManagement() {
     const openRenameModal = (server: Server) => {
         setServerToRename(server);
         setNewName(server.name);
+        setNewIconUrl(null);
         setRenameModalOpen(true);
     };
 
@@ -203,7 +205,8 @@ export default function ServerManagement() {
             const data = await res.json();
             if (data.success) {
                 setNewName(data.data.name);
-                showToast('Synced name from Discord', 'success');
+                setNewIconUrl(data.data.icon_url || null);
+                showToast('Synced data from Discord', 'success');
             } else {
                 showToast(data.error || 'Failed to sync with Discord', 'error');
             }
@@ -218,23 +221,29 @@ export default function ServerManagement() {
         if (!serverToRename || !newName.trim()) return;
         setIsRenaming(true);
         try {
+            const updatePayload: { name: string; icon_url?: string } = { name: newName };
+            if (newIconUrl) {
+                updatePayload.icon_url = newIconUrl;
+            }
+
             const res = await fetch(`/api/servers/${serverToRename._id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName })
+                body: JSON.stringify(updatePayload)
             });
 
             const data = await res.json();
             if (data.success) {
-                setServers(prev => prev.map(s => s._id === serverToRename._id ? { ...s, name: data.data.name } : s));
-                showToast('Server renamed successfully', 'success');
+                setServers(prev => prev.map(s => s._id === serverToRename._id ? { ...s, name: data.data.name, icon_url: data.data.icon_url } : s));
+                showToast('Server updated successfully', 'success');
                 setRenameModalOpen(false);
                 setServerToRename(null);
+                setNewIconUrl(null);
             } else {
-                showToast(data.error || 'Failed to rename server', 'error');
+                showToast(data.error || 'Failed to update server', 'error');
             }
         } catch (error) {
-            showToast('Failed to rename server', 'error');
+            showToast('Failed to update server', 'error');
         } finally {
             setIsRenaming(false);
         }

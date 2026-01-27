@@ -45,9 +45,9 @@ export async function PATCH(
         await connectDB();
 
         const body = await request.json();
-        const { is_partner, name } = body;
+        const { is_partner, name, icon_url } = body;
 
-        const updateData: { is_partner?: boolean; name?: string } = {};
+        const updateData: { is_partner?: boolean; name?: string; icon_url?: string } = {};
 
         if (typeof is_partner === 'boolean') {
             updateData.is_partner = is_partner;
@@ -55,6 +55,10 @@ export async function PATCH(
 
         if (typeof name === 'string' && name.trim().length > 0) {
             updateData.name = name.trim();
+        }
+
+        if (typeof icon_url === 'string') {
+            updateData.icon_url = icon_url;
         }
 
         if (Object.keys(updateData).length === 0) {

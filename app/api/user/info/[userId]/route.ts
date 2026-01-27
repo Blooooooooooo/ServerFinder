@@ -24,13 +24,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
 
             if (discordRes.ok) {
                 const discordUser = await discordRes.json();
+                // Animated avatars start with 'a_' and need .gif extension
+                const avatarExt = discordUser.avatar?.startsWith('a_') ? 'gif' : 'png';
                 return NextResponse.json({
                     success: true,
                     data: {
                         username: discordUser.username,
                         discriminator: discordUser.discriminator,
                         avatar: discordUser.avatar
-                            ? `https://cdn.discordapp.com/avatars/${userId}/${discordUser.avatar}.png`
+                            ? `https://cdn.discordapp.com/avatars/${userId}/${discordUser.avatar}.${avatarExt}?size=256`
                             : null
                     }
                 });

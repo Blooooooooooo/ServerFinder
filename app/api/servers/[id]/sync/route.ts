@@ -79,8 +79,10 @@ export async function POST(
         }
 
         // 4. Return the data
+        // Animated icons start with 'a_' and need .gif extension
+        const iconExt = guildData.icon?.startsWith('a_') ? 'gif' : 'png';
         const iconUrl = guildData.icon
-            ? `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.png`
+            ? `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.${iconExt}?size=256`
             : null;
 
         return NextResponse.json({
