@@ -309,66 +309,92 @@ export default function ServerManagement() {
     };
 
     const handleSyncAllServers = async () => {
-        if (isSyncingAll) return;
+        if (isSyncingAll) {
+            // Cancel the running sync
+            try {
+                await fetch('/api/admin/sync-all', { method: 'DELETE' });
+                showToast('Sync cancelled', 'info');
+                setIsSyncingAll(false);
+            } catch {
+                showToast('Failed to cancel sync', 'error');
+            }
+            return;
+        }
 
         setIsSyncingAll(true);
         setSyncProgress({ current: 0, total: 0, failed: 0 });
 
         try {
-            // First, get ALL server IDs (not just the current page)
-            const res = await fetch('/api/servers?limit=10000');
-            const data = await res.json();
+            // Start the background sync
+            const startRes = await fetch('/api/admin/sync-all', { method: 'POST' });
+            const startData = await startRes.json();
 
-            if (!data.success) {
-                showToast('Failed to fetch servers', 'error');
+            if (!startRes.ok) {
+                showToast(startData.error || 'Failed to start sync', 'error');
+                setIsSyncingAll(false);
                 return;
             }
 
-            const allServers = data.data.servers;
-            const total = allServers.length;
-            setSyncProgress({ current: 0, total, failed: 0 });
+            showToast('Background sync started - you can close this page', 'success');
 
-            let failed = 0;
+            // Poll for status updates
+            const pollStatus = async () => {
+                try {
+                    const statusRes = await fetch('/api/admin/sync-all');
+                    const statusData = await statusRes.json();
 
-            for (let i = 0; i < allServers.length; i++) {
-                const server = allServers[i];
-                let retries = 0;
-                const maxRetries = 3;
+                    if (statusData.success && statusData.data) {
+                        const { isRunning, current, total, failed } = statusData.data;
+                        setSyncProgress({ current, total, failed });
 
-                while (retries < maxRetries) {
-                    try {
-                        const syncRes = await fetch(`/api/servers/${server._id}/sync`, { method: 'POST' });
-                        const syncData = await syncRes.json();
-
-                        if (syncRes.status === 429 || syncData.retry_after) {
-                            // Rate limited - wait and retry
-                            const waitTime = (syncData.retry_after || 1) * 1000;
-                            await new Promise(resolve => setTimeout(resolve, waitTime + 100));
-                            retries++;
-                            continue;
+                        if (isRunning) {
+                            // Continue polling
+                            setTimeout(pollStatus, 1000);
+                        } else {
+                            // Sync completed
+                            setIsSyncingAll(false);
+                            showToast(`Sync complete: ${current - failed} synced${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
+                            fetchServers(); // Refresh the list
                         }
-                        break; // Success, move to next server
-                    } catch {
-                        retries++;
-                        if (retries >= maxRetries) failed++;
                     }
+                } catch {
+                    // If polling fails, stop but don't show error (page might be closing)
+                    setIsSyncingAll(false);
                 }
+            };
 
-                setSyncProgress({ current: i + 1, total, failed });
-
-                // Longer delay to avoid rate limiting (500ms)
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-
-            showToast(`Synced ${total - failed} servers${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
-            fetchServers(); // Refresh the list
+            // Start polling
+            pollStatus();
 
         } catch (error) {
-            showToast('Sync all failed', 'error');
-        } finally {
+            showToast('Failed to start sync', 'error');
             setIsSyncingAll(false);
         }
     };
+
+    // Check for running sync on page load
+    useEffect(() => {
+        const checkRunningSync = async () => {
+            try {
+                const res = await fetch('/api/admin/sync-all');
+                const data = await res.json();
+                if (data.success && data.data?.isRunning) {
+                    setIsSyncingAll(true);
+                    setSyncProgress({
+                        current: data.data.current,
+                        total: data.data.total,
+                        failed: data.data.failed
+                    });
+                    // Resume polling
+                    handleSyncAllServers();
+                }
+            } catch {
+                // Ignore errors on initial check
+            }
+        };
+        checkRunningSync();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const formatNumber = (num: number | undefined | null) => {
         if (num === undefined || num === null) return '0';
@@ -412,13 +438,14 @@ export default function ServerManagement() {
                         </div>
                         <button
                             onClick={handleSyncAllServers}
-                            disabled={isSyncingAll}
-                            className="btn-secondary px-4 py-2.5 whitespace-nowrap flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`btn-secondary px-4 py-2.5 whitespace-nowrap flex items-center gap-2 ${isSyncingAll ? 'hover:bg-red-500/20 hover:border-red-500/50' : ''}`}
                         >
                             {isSyncingAll ? (
                                 <>
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    Syncing {syncProgress.current}/{syncProgress.total}
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Cancel ({syncProgress.current}/{syncProgress.total})
                                 </>
                             ) : (
                                 <>
