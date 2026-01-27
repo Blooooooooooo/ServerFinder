@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { Flame } from 'lucide-react';
 
 interface Server {
     _id: string;
@@ -65,8 +66,8 @@ export default function TrendingServers() {
         <div className="py-20 px-6 bg-slate-900/50 relative">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
-                    <h2 className="text-3xl md:text-4xl font-bold mb-2">
-                        🔥 <span className="gradient-text">Trending Now</span>
+                    <h2 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3">
+                        <Flame className="w-8 h-8 text-discord-hot-orange" /> <span className="gradient-text">Trending Now</span>
                     </h2>
                     <p className="text-slate-400">Most viewed servers this week</p>
                 </div>
