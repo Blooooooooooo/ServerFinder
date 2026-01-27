@@ -59,6 +59,18 @@ export async function POST(
                 );
             }
 
+            // Rate limit handling - return retry_after for the client
+            if (discordRes.status === 429) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'Rate limited by Discord',
+                        retry_after: errData.retry_after || 1
+                    },
+                    { status: 429 }
+                );
+            }
+
             return NextResponse.json(
                 {
                     success: false,

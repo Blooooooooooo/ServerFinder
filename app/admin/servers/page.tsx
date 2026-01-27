@@ -332,15 +332,32 @@ export default function ServerManagement() {
 
             for (let i = 0; i < allServers.length; i++) {
                 const server = allServers[i];
-                try {
-                    await fetch(`/api/servers/${server._id}/sync`, { method: 'POST' });
-                } catch {
-                    failed++;
+                let retries = 0;
+                const maxRetries = 3;
+
+                while (retries < maxRetries) {
+                    try {
+                        const syncRes = await fetch(`/api/servers/${server._id}/sync`, { method: 'POST' });
+                        const syncData = await syncRes.json();
+
+                        if (syncRes.status === 429 || syncData.retry_after) {
+                            // Rate limited - wait and retry
+                            const waitTime = (syncData.retry_after || 1) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, waitTime + 100));
+                            retries++;
+                            continue;
+                        }
+                        break; // Success, move to next server
+                    } catch {
+                        retries++;
+                        if (retries >= maxRetries) failed++;
+                    }
                 }
+
                 setSyncProgress({ current: i + 1, total, failed });
 
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // Longer delay to avoid rate limiting (500ms)
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
 
             showToast(`Synced ${total - failed} servers${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
