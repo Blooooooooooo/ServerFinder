@@ -78,7 +78,7 @@ export async function POST(
             );
         }
 
-        // 4. Return the data
+        // 4. Build the update data
         // Animated icons start with 'a_' and need .gif extension
         const iconExt = guildData.icon?.startsWith('a_') ? 'gif' : 'png';
         const iconUrl = guildData.icon
@@ -90,6 +90,19 @@ export async function POST(
         const bannerUrl = guildData.banner
             ? `https://cdn.discordapp.com/banners/${guildData.id}/${guildData.banner}.${bannerExt}?size=1024`
             : null;
+
+        // 5. Save the synced data to database
+        const updateData: Record<string, unknown> = {
+            name: guildData.name,
+            current_member_count: inviteData.approximate_member_count,
+            online_member_count: inviteData.approximate_presence_count,
+            last_synced: new Date()
+        };
+
+        if (iconUrl) updateData.icon_url = iconUrl;
+        if (bannerUrl) updateData.banner_url = bannerUrl;
+
+        await Server.findByIdAndUpdate(params.id, updateData);
 
         return NextResponse.json({
             success: true,
