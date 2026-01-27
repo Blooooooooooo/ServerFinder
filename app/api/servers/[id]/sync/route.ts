@@ -85,11 +85,18 @@ export async function POST(
             ? `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.${iconExt}?size=256`
             : null;
 
+        // Animated banners also start with 'a_' and need .gif extension
+        const bannerExt = guildData.banner?.startsWith('a_') ? 'gif' : 'png';
+        const bannerUrl = guildData.banner
+            ? `https://cdn.discordapp.com/banners/${guildData.id}/${guildData.banner}.${bannerExt}?size=1024`
+            : null;
+
         return NextResponse.json({
             success: true,
             data: {
                 name: guildData.name,
                 icon_url: iconUrl,
+                banner_url: bannerUrl,
                 member_count: inviteData.approximate_member_count,
                 online_count: inviteData.approximate_presence_count
             }

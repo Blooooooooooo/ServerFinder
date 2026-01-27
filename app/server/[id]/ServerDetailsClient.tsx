@@ -107,7 +107,12 @@ function ServerDetailsContent({ initialServer }: ServerDetailsProps) {
             const res = await fetch(`/api/servers/${server._id}/sync`, { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                setServer(prev => prev ? { ...prev, name: data.data.name, icon_url: data.data.icon_url } : null);
+                setServer(prev => prev ? {
+                    ...prev,
+                    name: data.data.name,
+                    icon_url: data.data.icon_url,
+                    banner_url: data.data.banner_url
+                } : null);
                 showToast('Server synced from Discord', 'success');
             } else {
                 showToast(data.error || 'Failed to sync', 'error');
@@ -311,8 +316,8 @@ function ServerDetailsContent({ initialServer }: ServerDetailsProps) {
                                 onClick={handleTogglePartner}
                                 disabled={isUpdatingPartner}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${server.is_partner
-                                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                                        : 'bg-discord-hot-orange/20 text-discord-hot-orange hover:bg-discord-hot-orange/30'
+                                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                    : 'bg-discord-hot-orange/20 text-discord-hot-orange hover:bg-discord-hot-orange/30'
                                     }`}
                             >
                                 <Star className="w-4 h-4" />
