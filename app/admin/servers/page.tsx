@@ -56,6 +56,8 @@ export default function ServerManagement() {
     const [newIconUrl, setNewIconUrl] = useState<string | null>(null);
     const [isRenaming, setIsRenaming] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isSyncingAll, setIsSyncingAll] = useState(false);
+    const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0, failed: 0 });
 
     const debouncedSearch = useDebounce(search, 500);
 
@@ -306,6 +308,51 @@ export default function ServerManagement() {
         showToast('Export downloaded successfully', 'success');
     };
 
+    const handleSyncAllServers = async () => {
+        if (isSyncingAll) return;
+
+        setIsSyncingAll(true);
+        setSyncProgress({ current: 0, total: 0, failed: 0 });
+
+        try {
+            // First, get ALL server IDs (not just the current page)
+            const res = await fetch('/api/servers?limit=10000');
+            const data = await res.json();
+
+            if (!data.success) {
+                showToast('Failed to fetch servers', 'error');
+                return;
+            }
+
+            const allServers = data.data.servers;
+            const total = allServers.length;
+            setSyncProgress({ current: 0, total, failed: 0 });
+
+            let failed = 0;
+
+            for (let i = 0; i < allServers.length; i++) {
+                const server = allServers[i];
+                try {
+                    await fetch(`/api/servers/${server._id}/sync`, { method: 'POST' });
+                } catch {
+                    failed++;
+                }
+                setSyncProgress({ current: i + 1, total, failed });
+
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            showToast(`Synced ${total - failed} servers${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
+            fetchServers(); // Refresh the list
+
+        } catch (error) {
+            showToast('Sync all failed', 'error');
+        } finally {
+            setIsSyncingAll(false);
+        }
+    };
+
     const formatNumber = (num: number | undefined | null) => {
         if (num === undefined || num === null) return '0';
         return num.toLocaleString();
@@ -346,6 +393,25 @@ export default function ServerManagement() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
+                        <button
+                            onClick={handleSyncAllServers}
+                            disabled={isSyncingAll}
+                            className="btn-secondary px-4 py-2.5 whitespace-nowrap flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSyncingAll ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Syncing {syncProgress.current}/{syncProgress.total}
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Sync All
+                                </>
+                            )}
+                        </button>
                         <button onClick={handleExportCSV} className="btn-secondary px-4 py-2.5 whitespace-nowrap flex items-center gap-2">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                             Export CSV
