@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 
 interface StatsCardProps {
     title: string;
     value: number | string;
-    icon: string;
+    icon: ReactNode;
     delay?: number;
 }
 
@@ -40,15 +40,28 @@ export default function StatsCard({ title, value, icon, delay = 0 }: StatsCardPr
     }, [numericValue, delay]);
 
     return (
-        <div className="glass-card p-8 text-center group animate-scale-in hover:bg-white/5 transition-all duration-300" style={{ animationDelay: `${delay}ms` }}>
-            <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300 filter drop-shadow-lg">
-                {icon}
-            </div>
-            <div className="text-4xl font-bold text-white mb-2 tracking-tight">
-                {typeof value === 'number' ? displayValue.toLocaleString() : value}
-            </div>
-            <div className="text-slate-400 text-sm uppercase tracking-wider font-semibold">
-                {title}
+        <div
+            className="relative glass-card p-8 group animate-scale-in hover:bg-white/5 transition-all duration-300 overflow-hidden"
+            style={{ animationDelay: `${delay}ms` }}
+        >
+            {/* Accent border left */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-discord-hot-blue to-discord-hot-orange" />
+
+            <div className="flex items-center gap-6 pl-4">
+                {/* Icon */}
+                <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center text-discord-hot-blue group-hover:scale-105 transition-transform duration-300">
+                    {icon}
+                </div>
+
+                {/* Content - Left aligned */}
+                <div className="text-left">
+                    <div className="text-4xl font-bold text-white mb-1 tracking-tight">
+                        {typeof value === 'number' ? displayValue.toLocaleString() : value}
+                    </div>
+                    <div className="text-slate-400 text-sm uppercase tracking-wider font-medium">
+                        {title}
+                    </div>
+                </div>
             </div>
         </div>
     );
