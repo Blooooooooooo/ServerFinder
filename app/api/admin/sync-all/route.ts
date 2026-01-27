@@ -1,82 +1,171 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Server from '@/models/Server';
+import SyncStatus from '@/models/SyncStatus';
 
-// Store sync status in memory (in production, use Redis or database)
-let syncStatus = {
-    isRunning: false,
-    current: 0,
-    total: 0,
-    failed: 0,
-    startedAt: null as Date | null,
-    completedAt: null as Date | null,
-    lastError: null as string | null
-};
+const SYNC_ID = 'sync-all';
+
+// Helper to get or create sync status
+async function getSyncStatus() {
+    let status = await SyncStatus.findById(SYNC_ID);
+    if (!status) {
+        status = await SyncStatus.create({
+            _id: SYNC_ID,
+            isRunning: false,
+            current: 0,
+            total: 0,
+            failed: 0,
+            startedAt: null,
+            completedAt: null,
+            lastError: null
+        });
+    }
+    return status;
+}
 
 // GET - Check sync status
 export async function GET() {
-    return NextResponse.json({
-        success: true,
-        data: syncStatus
-    });
+    try {
+        await connectDB();
+        const status = await getSyncStatus();
+
+        // Check if sync seems stale (running but no update in 2 minutes)
+        if (status.isRunning && status.updatedAt) {
+            const staleDuration = Date.now() - new Date(status.updatedAt).getTime();
+            if (staleDuration > 2 * 60 * 1000) {
+                // Mark as not running (probably crashed)
+                status.isRunning = false;
+                status.lastError = 'Sync timed out';
+                await status.save();
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            data: {
+                isRunning: status.isRunning,
+                current: status.current,
+                total: status.total,
+                failed: status.failed,
+                startedAt: status.startedAt,
+                completedAt: status.completedAt,
+                lastError: status.lastError
+            }
+        });
+    } catch (error) {
+        console.error('Error getting sync status:', error);
+        return NextResponse.json({
+            success: false,
+            error: 'Failed to get sync status'
+        }, { status: 500 });
+    }
 }
 
 // POST - Start sync all servers
 export async function POST() {
-    if (syncStatus.isRunning) {
-        return NextResponse.json({
-            success: false,
-            error: 'Sync is already running',
-            data: syncStatus
-        }, { status: 409 });
-    }
-
-    // Start async sync process (don't await - let it run in background)
-    startBackgroundSync();
-
-    return NextResponse.json({
-        success: true,
-        message: 'Sync started',
-        data: syncStatus
-    });
-}
-
-// DELETE - Cancel sync
-export async function DELETE() {
-    if (syncStatus.isRunning) {
-        syncStatus.isRunning = false;
-        return NextResponse.json({
-            success: true,
-            message: 'Sync cancelled'
-        });
-    }
-    return NextResponse.json({
-        success: false,
-        error: 'No sync running'
-    }, { status: 400 });
-}
-
-async function startBackgroundSync() {
     try {
         await connectDB();
+        const status = await getSyncStatus();
+
+        if (status.isRunning) {
+            // Check if it's stale
+            const staleDuration = Date.now() - new Date(status.updatedAt).getTime();
+            if (staleDuration < 2 * 60 * 1000) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Sync is already running',
+                    data: {
+                        isRunning: status.isRunning,
+                        current: status.current,
+                        total: status.total,
+                        failed: status.failed
+                    }
+                }, { status: 409 });
+            }
+        }
 
         // Get all servers
         const servers = await Server.find({}, '_id link').lean();
 
-        syncStatus = {
+        // Update status to running
+        await SyncStatus.findByIdAndUpdate(SYNC_ID, {
             isRunning: true,
             current: 0,
             total: servers.length,
             failed: 0,
             startedAt: new Date(),
             completedAt: null,
-            lastError: null
-        };
+            lastError: null,
+            updatedAt: new Date()
+        });
+
+        // Start background sync (don't await - let it run)
+        startBackgroundSync(servers);
+
+        return NextResponse.json({
+            success: true,
+            message: 'Sync started',
+            data: {
+                isRunning: true,
+                current: 0,
+                total: servers.length,
+                failed: 0
+            }
+        });
+    } catch (error) {
+        console.error('Error starting sync:', error);
+        return NextResponse.json({
+            success: false,
+            error: 'Failed to start sync'
+        }, { status: 500 });
+    }
+}
+
+// DELETE - Cancel sync
+export async function DELETE() {
+    try {
+        await connectDB();
+        const status = await getSyncStatus();
+
+        if (status.isRunning) {
+            await SyncStatus.findByIdAndUpdate(SYNC_ID, {
+                isRunning: false,
+                lastError: 'Cancelled by user',
+                updatedAt: new Date()
+            });
+            return NextResponse.json({
+                success: true,
+                message: 'Sync cancelled'
+            });
+        }
+        return NextResponse.json({
+            success: false,
+            error: 'No sync running'
+        }, { status: 400 });
+    } catch (error) {
+        console.error('Error cancelling sync:', error);
+        return NextResponse.json({
+            success: false,
+            error: 'Failed to cancel sync'
+        }, { status: 500 });
+    }
+}
+
+interface ServerDoc {
+    _id: unknown;
+    link?: string;
+}
+
+async function startBackgroundSync(servers: ServerDoc[]) {
+    try {
+        await connectDB();
+
+        let failed = 0;
 
         for (let i = 0; i < servers.length; i++) {
             // Check if cancelled
-            if (!syncStatus.isRunning) {
-                syncStatus.lastError = 'Cancelled by user';
+            const status = await SyncStatus.findById(SYNC_ID);
+            if (!status?.isRunning) {
                 break;
             }
 
@@ -85,25 +174,42 @@ async function startBackgroundSync() {
             try {
                 await syncSingleServer(server);
             } catch (error) {
-                syncStatus.failed++;
-                syncStatus.lastError = error instanceof Error ? error.message : 'Unknown error';
+                failed++;
+                await SyncStatus.findByIdAndUpdate(SYNC_ID, {
+                    lastError: error instanceof Error ? error.message : 'Unknown error',
+                    updatedAt: new Date()
+                });
             }
 
-            syncStatus.current = i + 1;
+            // Update progress in database
+            await SyncStatus.findByIdAndUpdate(SYNC_ID, {
+                current: i + 1,
+                failed,
+                updatedAt: new Date()
+            });
 
             // Delay between requests to avoid rate limiting (600ms)
             await new Promise(resolve => setTimeout(resolve, 600));
         }
 
+        // Mark as complete
+        await SyncStatus.findByIdAndUpdate(SYNC_ID, {
+            isRunning: false,
+            completedAt: new Date(),
+            updatedAt: new Date()
+        });
+
     } catch (error) {
-        syncStatus.lastError = error instanceof Error ? error.message : 'Unknown error';
-    } finally {
-        syncStatus.isRunning = false;
-        syncStatus.completedAt = new Date();
+        console.error('Background sync error:', error);
+        await SyncStatus.findByIdAndUpdate(SYNC_ID, {
+            isRunning: false,
+            lastError: error instanceof Error ? error.message : 'Unknown error',
+            updatedAt: new Date()
+        });
     }
 }
 
-async function syncSingleServer(server: { _id: unknown; link?: string }) {
+async function syncSingleServer(server: ServerDoc) {
     if (!server.link) return;
 
     // Extract invite code
