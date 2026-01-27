@@ -385,8 +385,30 @@ export default function ServerManagement() {
                         total: data.data.total,
                         failed: data.data.failed
                     });
-                    // Resume polling
-                    handleSyncAllServers();
+                    // Start polling for status updates
+                    const pollStatus = async (): Promise<void> => {
+                        try {
+                            const statusRes = await fetch('/api/admin/sync-all');
+                            const statusData = await statusRes.json();
+                            if (statusData.success && statusData.data) {
+                                const { isRunning, current, total, failed } = statusData.data;
+                                setSyncProgress({ current, total, failed });
+                                if (isRunning) {
+                                    setIsSyncingAll(true);
+                                    setTimeout(pollStatus, 1000);
+                                } else {
+                                    setIsSyncingAll(false);
+                                    if (current > 0) {
+                                        showToast(`Sync complete: ${current - failed} synced${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
+                                        fetchServers();
+                                    }
+                                }
+                            }
+                        } catch {
+                            setIsSyncingAll(false);
+                        }
+                    };
+                    pollStatus();
                 }
             } catch {
                 // Ignore errors on initial check
