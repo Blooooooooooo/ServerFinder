@@ -183,7 +183,7 @@ export default function ServerManagement() {
             if (failed === 0) {
                 showToast(`${succeeded} server${succeeded > 1 ? 's' : ''} deleted successfully`, 'success');
             } else {
-                showToast(`${succeeded} deleted, ${failed} failed`, 'warning');
+                showToast(`${succeeded} deleted, ${failed} failed`, 'info');
             }
 
             fetchServers();
