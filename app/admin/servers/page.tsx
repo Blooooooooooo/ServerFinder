@@ -49,6 +49,8 @@ export default function ServerManagement() {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [serverToDelete, setServerToDelete] = useState<Server | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [serverToRename, setServerToRename] = useState<Server | null>(null);
@@ -155,6 +157,40 @@ export default function ServerManagement() {
             setSelected(new Set());
         } catch (error) {
             showToast('Bulk operation failed', 'error');
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selected.size === 0) return;
+        const count = selected.size;
+        const idsToDelete = Array.from(selected);
+
+        setIsBulkDeleting(true);
+        try {
+            const results = await Promise.allSettled(
+                idsToDelete.map(id =>
+                    fetch(`/api/servers/${id}`, { method: 'DELETE' }).then(res => res.json())
+                )
+            );
+
+            const succeeded = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+            const failed = count - succeeded;
+
+            setServers(prev => prev.filter(s => !idsToDelete.includes(s._id)));
+            setSelected(new Set());
+            setBulkDeleteModalOpen(false);
+
+            if (failed === 0) {
+                showToast(`${succeeded} server${succeeded > 1 ? 's' : ''} deleted successfully`, 'success');
+            } else {
+                showToast(`${succeeded} deleted, ${failed} failed`, 'warning');
+            }
+
+            fetchServers();
+        } catch (error) {
+            showToast('Bulk delete failed', 'error');
+        } finally {
+            setIsBulkDeleting(false);
         }
     };
 
@@ -513,6 +549,10 @@ export default function ServerManagement() {
                                 <button onClick={() => handleBulkPartner(false)} className="text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded transition-colors">
                                     Remove from Partners
                                 </button>
+                                <div className="w-px h-5 bg-white/10"></div>
+                                <button onClick={() => setBulkDeleteModalOpen(true)} className="text-sm bg-red-600/20 hover:bg-red-600/30 text-red-300 px-3 py-1 rounded transition-colors flex items-center gap-1">
+                                    🗑️ Delete Selected
+                                </button>
                                 <button onClick={() => setSelected(new Set())} className="text-sm text-slate-400 hover:text-white px-3 py-1 transition-colors">
                                     Clear Selection
                                 </button>
@@ -749,6 +789,61 @@ export default function ServerManagement() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                             This action cannot be undone. All associated data including stats, favorites, and history will be permanently removed.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={bulkDeleteModalOpen}
+                onClose={() => !isBulkDeleting && setBulkDeleteModalOpen(false)}
+                title="Delete Multiple Servers"
+                footer={
+                    <>
+                        <button
+                            onClick={() => setBulkDeleteModalOpen(false)}
+                            disabled={isBulkDeleting}
+                            className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={isBulkDeleting}
+                            className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                        >
+                            {isBulkDeleting ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Deleting...
+                                </>
+                            ) : (
+                                `Delete ${selected.size} Server${selected.size > 1 ? 's' : ''}`
+                            )}
+                        </button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <p>Are you sure you want to delete <span className="font-bold text-white">{selected.size} server{selected.size > 1 ? 's' : ''}</span>?</p>
+                    <div className="bg-white/5 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
+                        {servers.filter(s => selected.has(s._id)).map(s => (
+                            <div key={s._id} className="flex items-center gap-2 text-sm text-slate-300">
+                                {s.icon_url ? (
+                                    <img src={s.icon_url} alt="" className="w-5 h-5 rounded-full" />
+                                ) : (
+                                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold">{s.name.substring(0, 2)}</div>
+                                )}
+                                <span className="truncate">{s.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                        <p className="text-red-400 text-sm flex gap-2">
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            This action cannot be undone. All associated data for these servers will be permanently removed.
                         </p>
                     </div>
                 </div>
