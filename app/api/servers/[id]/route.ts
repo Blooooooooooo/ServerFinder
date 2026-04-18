@@ -47,7 +47,7 @@ export async function PATCH(
         const body = await request.json();
         const { is_partner, name, icon_url } = body;
 
-        const updateData: { is_partner?: boolean; name?: string; icon_url?: string } = {};
+        const updateData: { is_partner?: boolean; name?: string; icon_url?: string; name_locked?: boolean } = {};
 
         if (typeof is_partner === 'boolean') {
             updateData.is_partner = is_partner;
@@ -55,6 +55,7 @@ export async function PATCH(
 
         if (typeof name === 'string' && name.trim().length > 0) {
             updateData.name = name.trim();
+            updateData.name_locked = true; // Prevent weekly checks from reverting this name
         }
 
         if (typeof icon_url === 'string') {

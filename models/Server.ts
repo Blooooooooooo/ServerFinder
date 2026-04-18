@@ -17,6 +17,7 @@ export interface IServer {
     banner_url?: string;
     description?: string;
     is_partner?: boolean;
+    name_locked?: boolean;
 }
 
 const serverSchema = new Schema<IServer>({
@@ -35,7 +36,8 @@ const serverSchema = new Schema<IServer>({
     icon_url: { type: String },
     banner_url: { type: String },
     description: { type: String },
-    is_partner: { type: Boolean, default: false }
+    is_partner: { type: Boolean, default: false },
+    name_locked: { type: Boolean, default: false }
 }, {
     _id: false,
     timestamps: false
